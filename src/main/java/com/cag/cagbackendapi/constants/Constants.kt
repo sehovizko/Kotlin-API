@@ -1,6 +1,7 @@
 package com.cag.cagbackendapi.constants
 
-import com.cag.cagbackendapi.dtos.UserDto
+import com.cag.cagbackendapi.dtos.RegisterUserRequestDto
+import com.cag.cagbackendapi.dtos.UserResponseDto
 
 object RestErrorMessages {
     const val BAD_REQUEST_MESSAGE = "400: Bad Request"
@@ -16,12 +17,12 @@ object RestErrorMessages {
 object DetailedErrorMessages {
     const val MISSING_AUTH_KEY = "Request is unauthorized."
     const val WRONG_AUTH_KEY = "Invalid auth key."
-    const val NAME_REQUIRED = "Name is required. "
+    const val NAME_REQUIRED = "First name is required. "
     const val EMAIL_REQUIRED = "Email is required. "
 }
 
 object LoggerMessages {
-    fun LOG_SAVE_USER(userDto: UserDto): String {
-        return "Save user: $userDto"
+    fun LOG_SAVE_USER(registerUserRequest: RegisterUserRequestDto): String {
+        return "Save user: $registerUserRequest"
     }
 }
