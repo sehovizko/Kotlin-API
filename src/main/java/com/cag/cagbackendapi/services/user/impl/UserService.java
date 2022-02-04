@@ -2,8 +2,7 @@ package com.cag.cagbackendapi.services.user.impl;
 
 import com.cag.cagbackendapi.constants.DetailedErrorMessages;
 import com.cag.cagbackendapi.daos.impl.UserDao;
-import com.cag.cagbackendapi.dtos.RegisterUserRequestDto;
-import com.cag.cagbackendapi.dtos.UserResponseDto;
+import com.cag.cagbackendapi.dtos.UserDto;
 import com.cag.cagbackendapi.errors.exceptions.BadRequestException;
 import com.cag.cagbackendapi.services.user.UserServiceI;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,14 +18,14 @@ public class UserService implements UserServiceI {
         this.userDao = userDao;
     }
 
-    public UserResponseDto registerUser(RegisterUserRequestDto registerUserRequestDto) {
+    public UserDto registerUser(UserDto userDto) {
         var badRequestMsg = "";
 
-        if (registerUserRequestDto.getFirst_name() == null || registerUserRequestDto.getFirst_name().isBlank()) {
+        if (userDto.getFirst_name() == null || userDto.getFirst_name().isBlank()) {
             badRequestMsg += DetailedErrorMessages.NAME_REQUIRED;
         }
 
-        if (registerUserRequestDto.getEmail() == null || registerUserRequestDto.getEmail().isBlank()) {
+        if (userDto.getEmail() == null || userDto.getEmail().isBlank()) {
             badRequestMsg += DetailedErrorMessages.EMAIL_REQUIRED;
         }
 
@@ -34,6 +33,6 @@ public class UserService implements UserServiceI {
             throw new BadRequestException(badRequestMsg, null);
         }
 
-        return userDao.saveUser(registerUserRequestDto);
+        return userDao.saveUser(userDto);
     }
 }

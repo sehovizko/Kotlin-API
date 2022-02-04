@@ -2,8 +2,7 @@ package com.cag.cagbackendapi.daos.impl
 
 import com.cag.cagbackendapi.constants.LoggerMessages.LOG_SAVE_USER
 import com.cag.cagbackendapi.daos.UserDaoI
-import com.cag.cagbackendapi.dtos.RegisterUserRequestDto
-import com.cag.cagbackendapi.dtos.UserResponseDto
+import com.cag.cagbackendapi.dtos.UserDto
 import com.cag.cagbackendapi.entities.UserEntity
 import com.cag.cagbackendapi.repositories.UserRepository
 import org.modelmapper.ModelMapper
@@ -23,14 +22,18 @@ class UserDao : UserDaoI {
     @Autowired
     private lateinit var modelMapper: ModelMapper
 
-    override fun saveUser(registerUserRequestDto: RegisterUserRequestDto): UserResponseDto {
-        logger.info(LOG_SAVE_USER(registerUserRequestDto))
+    override fun saveUser(userDto: UserDto): UserDto {
+        if (userDto.user_id == null) {
+            userDto.user_id = UUID.randomUUID()
+        }
 
-        val savedUserEntity = userRepository.save(userDtoToEntity(registerUserRequestDto))
+        logger.info(LOG_SAVE_USER(userDto))
+
+        val savedUserEntity = userRepository.save(userDtoToEntity(userDto))
         return savedUserEntity.toDto()
     }
 
-    private fun userDtoToEntity(registerUserRequestDto: RegisterUserRequestDto): UserEntity {
-        return modelMapper.map(registerUserRequestDto, UserEntity::class.java)
+    private fun userDtoToEntity(userDto: UserDto): UserEntity {
+        return modelMapper.map(userDto, UserEntity::class.java)
     }
 }

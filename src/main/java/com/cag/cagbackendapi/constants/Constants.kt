@@ -1,7 +1,6 @@
 package com.cag.cagbackendapi.constants
 
-import com.cag.cagbackendapi.dtos.RegisterUserRequestDto
-import com.cag.cagbackendapi.dtos.UserResponseDto
+import com.cag.cagbackendapi.dtos.UserDto
 
 object RestErrorMessages {
     const val BAD_REQUEST_MESSAGE = "400: Bad Request"
@@ -22,7 +21,7 @@ object DetailedErrorMessages {
 }
 
 object LoggerMessages {
-    fun LOG_SAVE_USER(registerUserRequest: RegisterUserRequestDto): String {
-        return "Save user: $registerUserRequest"
+    fun LOG_SAVE_USER(userDto: UserDto): String {
+        return "Save user: $userDto"
     }
 }

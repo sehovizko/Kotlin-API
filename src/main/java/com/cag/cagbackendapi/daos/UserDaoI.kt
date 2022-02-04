@@ -1,8 +1,7 @@
 package com.cag.cagbackendapi.daos;
 
-import com.cag.cagbackendapi.dtos.RegisterUserRequestDto
-import com.cag.cagbackendapi.dtos.UserResponseDto
+import com.cag.cagbackendapi.dtos.UserDto
 
 interface UserDaoI {
-    fun saveUser(registerUserRequestDto: RegisterUserRequestDto): UserResponseDto
+    fun saveUser(userDto: UserDto): UserDto
 }

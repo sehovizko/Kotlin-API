@@ -1,8 +1,7 @@
 package com.cag.cagbackendapi.services.user;
 
-import com.cag.cagbackendapi.dtos.RegisterUserRequestDto;
-import com.cag.cagbackendapi.dtos.UserResponseDto;
+import com.cag.cagbackendapi.dtos.UserDto;
 
 public interface UserServiceI {
-    UserResponseDto registerUser(RegisterUserRequestDto registerUserRequestDto);
+    UserDto registerUser(UserDto userDto);
 }
