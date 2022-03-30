@@ -1,9 +1,8 @@
 package com.cag.cagbackendapi.entities;
 
-import com.cag.cagbackendapi.dtos.UserResponseDto;
+import com.cag.cagbackendapi.dtos.UserDto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.GenericGenerator;
 import org.hibernate.annotations.Type;
@@ -25,14 +24,28 @@ public class UserEntity {
             strategy = "org.hibernate.id.UUIDGenerator"
     )
     @Column(name = "user_id", updatable = false, nullable = false)
-    public UUID userId;
-    public String first_name;
-    public String last_name;
-    public String email;
-    public Boolean active_status;
-    public String session_id;
+    private UUID userId;
+    private String first_name;
+    private String last_name;
+    private String email;
+    private Boolean active_status;
+    private String session_id;
+    private String img_url;
+    private Boolean agreed_18;
 
-    public UserResponseDto toDto() {
-        return new UserResponseDto(this.userId, this.first_name, this.last_name, this.email, this.active_status, this.session_id);
+    public UserDto toDto() {
+        return new UserDto(this.userId, this.first_name, this.last_name, this.email, this.active_status, this.session_id, this.img_url, this.agreed_18);
+    }
+
+    public void setFirstName(String first_name) {
+        this.first_name = first_name;
+    }
+
+    public void setLastName(String last_name) {
+        this.last_name = last_name;
+    }
+
+    public void setEmailJava(String email) {
+        this.email = email;
     }
 }

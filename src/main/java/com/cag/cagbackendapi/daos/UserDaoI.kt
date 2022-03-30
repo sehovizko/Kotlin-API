@@ -1,12 +1,14 @@
 package com.cag.cagbackendapi.daos;
 
-import com.cag.cagbackendapi.dtos.RegisterUserRequestDto
+import com.cag.cagbackendapi.dtos.UserRegistrationDto
 import com.cag.cagbackendapi.dtos.UserDto
-import com.cag.cagbackendapi.dtos.UserResponseDto
+import com.cag.cagbackendapi.dtos.UserUpdateDto
 import java.util.*
 
 interface UserDaoI {
-    fun saveUser(registerUserRequestDto: RegisterUserRequestDto): UserResponseDto
-    fun updateUser(userDto: UserDto): UserResponseDto?
-    fun getUser(userUUID: UUID): UserResponseDto?
+    fun saveUser(userRegistrationDto: UserRegistrationDto): UserDto
+    fun updateUser(userId: UUID, userUpdateDto: UserUpdateDto): UserDto?
+    fun getUser(userUUID: UUID): UserDto?
+    fun deleteUser(userUUID: UUID): UserDto?
+
 }

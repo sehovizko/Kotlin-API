@@ -1,8 +1,8 @@
 package com.cag.cagbackendapi.constants
 
-import com.cag.cagbackendapi.dtos.RegisterUserRequestDto
+import com.cag.cagbackendapi.dtos.UserRegistrationDto
 import com.cag.cagbackendapi.dtos.UserDto
-import com.cag.cagbackendapi.dtos.UserResponseDto
+import com.cag.cagbackendapi.dtos.UserUpdateDto
 import java.util.*
 
 object RestErrorMessages {
@@ -24,18 +24,21 @@ object DetailedErrorMessages {
     const val EMAIL_REQUIRED = "Email is required. "
     const val INVALID_USER_ID = "Invalid user ID. "
     const val USER_NOT_FOUND = "User not found. "
-    const val INVALID_UUID = "Invalid UserId. "
+    const val INVALID_UUID = "Invalid Id. "
+    const val MUST_BE_18 = "You must be eighteen years or older to use Chicago Artist Guide. "
 }
 
 object LoggerMessages {
-    fun LOG_SAVE_USER(registerUserRequest: RegisterUserRequestDto): String {
-        return "Save user: $registerUserRequest"
+    fun LOG_SAVE_USER(userRegistration: UserRegistrationDto): String {
+        return "Save user: $userRegistration"
     }
-
-    fun LOG_UPDATE_USER(userDto: UserDto): String {
+    fun LOG_UPDATE_USER(userDto: UserUpdateDto): String {
         return "Update user: $userDto"
     }
     fun GET_USER(userId: UUID): String {
         return "Get user: $userId"
+    }
+    fun DELETE_USER(userUUID: UUID): String {
+        return "Delete user: $userUUID"
     }
 }

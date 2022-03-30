@@ -1,12 +1,13 @@
 package com.cag.cagbackendapi.daos.impl
 
+import com.cag.cagbackendapi.constants.LoggerMessages.DELETE_USER
 import com.cag.cagbackendapi.constants.LoggerMessages.GET_USER
 import com.cag.cagbackendapi.constants.LoggerMessages.LOG_SAVE_USER
 import com.cag.cagbackendapi.constants.LoggerMessages.LOG_UPDATE_USER
 import com.cag.cagbackendapi.daos.UserDaoI
-import com.cag.cagbackendapi.dtos.RegisterUserRequestDto
+import com.cag.cagbackendapi.dtos.UserRegistrationDto
 import com.cag.cagbackendapi.dtos.UserDto
-import com.cag.cagbackendapi.dtos.UserResponseDto
+import com.cag.cagbackendapi.dtos.UserUpdateDto
 import com.cag.cagbackendapi.entities.UserEntity
 import com.cag.cagbackendapi.repositories.UserRepository
 import org.modelmapper.ModelMapper
@@ -26,35 +27,44 @@ class UserDao : UserDaoI {
     @Autowired
     private lateinit var modelMapper: ModelMapper
 
-    override fun saveUser(registerUserRequestDto: RegisterUserRequestDto): UserResponseDto {
-        logger.info(LOG_SAVE_USER(registerUserRequestDto))
+    override fun saveUser(userRegistrationDto: UserRegistrationDto): UserDto {
+        logger.info(LOG_SAVE_USER(userRegistrationDto))
 
-        val savedUserEntity = userRepository.save(userDtoToEntity(registerUserRequestDto))
+        val savedUserEntity = userRepository.save(userDtoToEntity(userRegistrationDto))
         return savedUserEntity.toDto()
     }
 
-    override fun getUser(userUUID: UUID): UserResponseDto? {
+    override fun getUser(userUUID: UUID): UserDto? {
         logger.info(GET_USER(userUUID))
 
         val userEntity = userRepository.getByUserId(userUUID) ?: return null
         return userEntity.toDto()
     }
 
-    private fun userDtoToEntity(registerUserRequestDto: RegisterUserRequestDto): UserEntity {
-        return modelMapper.map(registerUserRequestDto, UserEntity::class.java)
-    }
+    override fun updateUser(userId: UUID, userUpdateDto: UserUpdateDto): UserDto? {
+        logger.info(LOG_UPDATE_USER(userUpdateDto))
 
-    override fun updateUser(userDto: UserDto): UserResponseDto? {
-        logger.info(LOG_UPDATE_USER(userDto))
+        val userEntity = userRepository.getByUserId(userId) ?: return null
 
-        val userEntity = userRepository.getByUserId(userDto.user_id) ?: return null
-
-        userEntity.first_name = userDto.first_name
-        userEntity.last_name = userDto.last_name
-        userEntity.email = userDto.email
+        userEntity.setFirstName(userUpdateDto.first_name)
+        userEntity.setLastName(userUpdateDto.last_name)
+        userEntity.setEmailJava(userUpdateDto.email)
 
         val userResponseEntity = userRepository.save(userEntity)
 
         return userResponseEntity.toDto()
+    }
+
+    override fun deleteUser(userUUID: UUID): UserDto? {
+        logger.info(DELETE_USER(userUUID))
+
+        val deleteUserEntity = userRepository.getByUserId(userUUID) ?: return null
+        userRepository.deleteById(userUUID)
+        return deleteUserEntity.toDto()
+
+    }
+
+    private fun userDtoToEntity(userRegistrationDto: UserRegistrationDto): UserEntity {
+        return modelMapper.map(userRegistrationDto, UserEntity::class.java)
     }
 }
