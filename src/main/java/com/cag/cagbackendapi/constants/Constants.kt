@@ -1,5 +1,6 @@
 package com.cag.cagbackendapi.constants
 
+import com.cag.cagbackendapi.dtos.ProfileRegistrationDto
 import com.cag.cagbackendapi.dtos.UserRegistrationDto
 import com.cag.cagbackendapi.dtos.UserDto
 import com.cag.cagbackendapi.dtos.UserUpdateDto
@@ -22,10 +23,18 @@ object DetailedErrorMessages {
     const val FIRST_NAME_REQUIRED = "First name is required. "
     const val LAST_NAME_REQUIRED = "Last name is required. "
     const val EMAIL_REQUIRED = "Email is required. "
+    const val PASSWORD_REQUIRED = "Password is required. "
     const val INVALID_USER_ID = "Invalid user ID. "
     const val USER_NOT_FOUND = "User not found. "
     const val INVALID_UUID = "Invalid Id. "
     const val MUST_BE_18 = "You must be eighteen years or older to use Chicago Artist Guide. "
+    const val USER_HAS_PROFILE = "This user already has a profile. "
+    const val PRONOUN_REQUIRED = "Pronoun identity is required. "
+    const val LGBTQPLUS_MEMBER_REQUIRED = "LGBTQ+ identity is required. "
+    const val GENDER_IDENTITY_REQUIRED = "Gender identity is required. "
+    const val HEIGHT_INCHES_REQUIRED = "Height is required. "
+    const val BIO_REQUIRED = "Bio is required. "
+    const val PROFILE_NOT_FOUND = "Profile not found. "
 }
 
 object LoggerMessages {
@@ -40,5 +49,11 @@ object LoggerMessages {
     }
     fun DELETE_USER(userUUID: UUID): String {
         return "Delete user: $userUUID"
+    }
+    fun LOG_SAVE_PROFILE(profileRegistrationDto: ProfileRegistrationDto): String {
+        return "Save profile: $profileRegistrationDto"
+    }
+    fun GET_PROFILE(userId: UUID): String {
+        return "Get profile: $userId"
     }
 }
