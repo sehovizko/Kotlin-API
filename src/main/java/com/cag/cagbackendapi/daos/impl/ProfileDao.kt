@@ -3,22 +3,26 @@ package com.cag.cagbackendapi.daos.impl
 import com.cag.cagbackendapi.constants.DetailedErrorMessages
 import com.cag.cagbackendapi.constants.LoggerMessages.GET_PROFILE
 import com.cag.cagbackendapi.constants.LoggerMessages.LOG_SAVE_PROFILE
+import com.cag.cagbackendapi.constants.LoggerMessages.LOG_SAVE_UNION_STATUS_MEMBER
 import com.cag.cagbackendapi.daos.ProfileDaoI
 import com.cag.cagbackendapi.dtos.ProfileDto
 import com.cag.cagbackendapi.dtos.ProfileRegistrationDto
 import com.cag.cagbackendapi.entities.ProfileEntity
-import com.cag.cagbackendapi.entities.UserEntity
+import com.cag.cagbackendapi.entities.UnionStatusEntity
+import com.cag.cagbackendapi.entities.UnionStatusMemberEntity
+import com.cag.cagbackendapi.errors.exceptions.NotFoundException
 import com.cag.cagbackendapi.repositories.ProfileRepository
+import com.cag.cagbackendapi.repositories.UnionStatusMemberRepository
+import com.cag.cagbackendapi.repositories.UnionStatusRepository
 import com.cag.cagbackendapi.repositories.UserRepository
-import javassist.NotFoundException
-import org.modelmapper.ModelMapper
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.Logger
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 import java.util.*
 
 @Service
-class ProfileDao : ProfileDaoI{
+class ProfileDao : ProfileDaoI {
     @Autowired
     private lateinit var profileRepository: ProfileRepository
 
@@ -26,47 +30,51 @@ class ProfileDao : ProfileDaoI{
     private lateinit var userRepository: UserRepository
 
     @Autowired
+    private lateinit var unionStatusMemberRepository: UnionStatusMemberRepository
+
+    @Autowired
+    private lateinit var unionStatusRepository: UnionStatusRepository
+
+    @Autowired
     private lateinit var logger: Logger
 
     @Autowired
-    private lateinit var modelMapper: ModelMapper
+    private lateinit var objectMapper: ObjectMapper
 
     override fun saveProfile(userId: UUID, profileRegistrationDto: ProfileRegistrationDto): ProfileDto {
         logger.info(LOG_SAVE_PROFILE(profileRegistrationDto))
 
         //try to move to service level (throw exception)
-        val user = userRepository.getByUserId(userId) ?: throw NotFoundException(DetailedErrorMessages.USER_NOT_FOUND)
+        val user = userRepository.getByUserId(userId) //?: throw NotFoundException(DetailedErrorMessages.USER_NOT_FOUND)
 
-        val profileDto = ProfileDto(
-                profile_id = null,
-                pronouns = profileRegistrationDto.pronouns,
-                lgbtqplus_member = profileRegistrationDto.lgbtqplus_member,
-                gender_identity = profileRegistrationDto.gender_identity,
-                comfortable_playing_man = profileRegistrationDto.comfortable_playing_man,
-                comfortable_playing_women = profileRegistrationDto.comfortable_playing_women,
-                comfortable_playing_neither = profileRegistrationDto.comfortable_playing_neither,
-                comfortable_playing_transition = profileRegistrationDto.comfortable_playing_transition,
-                height_inches = profileRegistrationDto.height_inches,
-                agency = profileRegistrationDto.agency,
-                website_link_one = profileRegistrationDto.website_link_one,
-                website_link_two = profileRegistrationDto.website_link_two,
-                website_type_one = profileRegistrationDto.website_type_one,
-                website_type_two = profileRegistrationDto.website_type_two,
-                bio = profileRegistrationDto.bio,
-                user = user
-        )
+        val profileEntity = ProfileEntity(
+                null,
+                profileRegistrationDto.pronouns,
+                profileRegistrationDto.lgbtqplus_member,
+                profileRegistrationDto.gender_identity,
+                profileRegistrationDto.comfortable_playing_man,
+                profileRegistrationDto.comfortable_playing_women,
+                profileRegistrationDto.comfortable_playing_neither,
+                profileRegistrationDto.comfortable_playing_transition,
+                profileRegistrationDto.height_inches!!,
+                profileRegistrationDto.agency,
+                profileRegistrationDto.website_link_one,
+                profileRegistrationDto.website_link_two,
+                profileRegistrationDto.website_type_one,
+                profileRegistrationDto.website_type_two,
+                profileRegistrationDto.bio,
+                user)
 
-        val savedProfileEntity = profileRepository.save(profileDtoToEntity(profileDto))
+        val savedProfileEntity = profileRepository.save(profileEntity)
+
+        //retrieves union status entity from union status member table. Also writes if it doesn't exist.
+        val unionStatusEntity = getUnionStatusEntity(profileRegistrationDto.demographic_union_status)
+
+        //create & save union status member entity to union status member table
+        saveUnionStatusMemberEntity(savedProfileEntity, unionStatusEntity)
+
         return savedProfileEntity.toDto()
     }
-
-    /*override fun getUserWithProfile(userId: UUID): ProfileDto? {
-        return if(profileRepository.getByUserEntity_userId(userId).isEmpty()){
-            null
-        }else{
-            profileRepository.getByUserEntity_userId(userId)[0].toDto()
-        }
-    }*/
 
     override fun getUserWithProfile(userId: UUID): ProfileDto? {
         return if(profileRepository.getByUserEntity_userId(userId) == null){
@@ -75,8 +83,6 @@ class ProfileDao : ProfileDaoI{
             profileRepository.getByUserEntity_userId(userId).toDto()
         }
     }
-        //return profileRepository.getByUserEntity_userId(userId).toDto() ?: null
-
 
     override fun getProfile(userId: UUID): ProfileDto? {
         logger.info(GET_PROFILE(userId))
@@ -85,16 +91,26 @@ class ProfileDao : ProfileDaoI{
         return profileEntity.toDto()
     }
 
-/*    override fun getProfile(userId: UUID): ProfileDto? {
-        logger.info(GET_PROFILE(userId))
-
-        val profileEntity = profileRepository.getByUserEntity_userId(userId)[0] ?: return null
-        return profileEntity.toDto()
-    }*/
-
     private fun profileDtoToEntity(profileDto: ProfileDto): ProfileEntity {
-        return modelMapper.map(profileDto, ProfileEntity::class.java)
-
+        return objectMapper.convertValue(profileDto, ProfileEntity::class.java) //.map(profileDto, ProfileEntity::class.java)
     }
 
+    private fun getUnionStatusEntity(demographicUnionStatus: String?): UnionStatusEntity {
+        return if (unionStatusRepository.getByName(demographicUnionStatus) != null ) {
+            unionStatusRepository.getByName(demographicUnionStatus)
+        } else {
+            throw NotFoundException(DetailedErrorMessages.UNION_STATUS_NOT_SUPPORTED, null)
+        }
+    }
+
+    private fun saveUnionStatusMemberEntity(savedProfileEntity: ProfileEntity, unionStatusEntity: UnionStatusEntity){
+        var unionStatusMemberEntity = UnionStatusMemberEntity(
+                null,
+                savedProfileEntity,
+                unionStatusEntity
+        )
+
+        logger.info(LOG_SAVE_UNION_STATUS_MEMBER(unionStatusMemberEntity))
+        unionStatusMemberRepository.save(unionStatusMemberEntity)
+    }
 }

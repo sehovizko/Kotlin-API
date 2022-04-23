@@ -4,6 +4,8 @@ import com.cag.cagbackendapi.dtos.ProfileRegistrationDto
 import com.cag.cagbackendapi.dtos.UserRegistrationDto
 import com.cag.cagbackendapi.dtos.UserDto
 import com.cag.cagbackendapi.dtos.UserUpdateDto
+import com.cag.cagbackendapi.entities.UnionStatusEntity
+import com.cag.cagbackendapi.entities.UnionStatusMemberEntity
 import java.util.*
 
 object RestErrorMessages {
@@ -28,6 +30,7 @@ object DetailedErrorMessages {
     const val USER_NOT_FOUND = "User not found. "
     const val INVALID_UUID = "Invalid Id. "
     const val MUST_BE_18 = "You must be eighteen years or older to use Chicago Artist Guide. "
+    const val MUST_AGREE_PRIVACY = "You must accept our Privacy Agreement to use Chicago Artist Guide. "
     const val USER_HAS_PROFILE = "This user already has a profile. "
     const val PRONOUN_REQUIRED = "Pronoun identity is required. "
     const val LGBTQPLUS_MEMBER_REQUIRED = "LGBTQ+ identity is required. "
@@ -35,6 +38,8 @@ object DetailedErrorMessages {
     const val HEIGHT_INCHES_REQUIRED = "Height is required. "
     const val BIO_REQUIRED = "Bio is required. "
     const val PROFILE_NOT_FOUND = "Profile not found. "
+    const val UNION_STATUS_MEMBER_REQUIRED = "Union status is required. "
+    const val UNION_STATUS_NOT_SUPPORTED = "Union Status not supported. "
 }
 
 object LoggerMessages {
@@ -55,5 +60,8 @@ object LoggerMessages {
     }
     fun GET_PROFILE(userId: UUID): String {
         return "Get profile: $userId"
+    }
+    fun LOG_SAVE_UNION_STATUS_MEMBER(unionStatusMemberEntity: UnionStatusMemberEntity): String {
+        return "Save Union Status Member: $unionStatusMemberEntity"
     }
 }

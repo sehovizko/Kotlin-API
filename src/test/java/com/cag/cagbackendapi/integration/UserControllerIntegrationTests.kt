@@ -27,11 +27,13 @@ class UserControllerIntegrationTests {
 
     private val objectMapper = jacksonObjectMapper()
 
-    private val validRegisterUser = UserRegistrationDto("first name", "last name", "user", "password", true)
+    private val validRegisterUser = UserRegistrationDto("first name", "last name", "user", "password", true, true)
     private val validAuthKey = "mockAuthKey"
 
     @Test
     fun registerUser_validInput_201Success() {
+        val expectedActiveStatus = true
+
         val headers = HttpHeaders()
         headers.set("authKey", validAuthKey)
         val request = HttpEntity(validRegisterUser, headers)
@@ -44,7 +46,10 @@ class UserControllerIntegrationTests {
         assertEquals(validRegisterUser.first_name, createUser.first_name)
         assertEquals(validRegisterUser.last_name, createUser.last_name)
         assertEquals(validRegisterUser.email, createUser.email)
-        assertNotNull(createUser.user_id)
+        assertEquals(expectedActiveStatus, createUser.active_status)
+        assertEquals(validRegisterUser.agreed_privacy, createUser.agreed_privacy)
+        assertEquals(validRegisterUser.agreed_18, createUser.agreed_18)
+        assertNotNull(createUser.userId)
     }
 
     @Test
@@ -60,12 +65,12 @@ class UserControllerIntegrationTests {
         assertEquals(HttpStatus.BAD_REQUEST, errorDetailsResponse.statusCode)
         assertNotNull(errorDetailsResponse?.body?.time)
         assertEquals(RestErrorMessages.BAD_REQUEST_MESSAGE, errorDetailsResponse?.body?.restErrorMessage)
-        assertEquals(DetailedErrorMessages.FIRST_NAME_REQUIRED + DetailedErrorMessages.LAST_NAME_REQUIRED + DetailedErrorMessages.EMAIL_REQUIRED + DetailedErrorMessages.PASSWORD_REQUIRED + DetailedErrorMessages.MUST_BE_18, errorDetailsResponse?.body?.detailedMessage)
+        assertEquals(DetailedErrorMessages.FIRST_NAME_REQUIRED + DetailedErrorMessages.LAST_NAME_REQUIRED + DetailedErrorMessages.EMAIL_REQUIRED + DetailedErrorMessages.PASSWORD_REQUIRED + DetailedErrorMessages.MUST_BE_18 + DetailedErrorMessages.MUST_AGREE_PRIVACY, errorDetailsResponse?.body?.detailedMessage)
     }
 
     @Test
-    fun registerUser_nullFirstNameAndLastNameAndEmailAndPasswordAndNot18_400BadRequest() {
-        val emptyNameUser = UserRegistrationDto(null, null, null, null, false)
+    fun registerUser_nullFirstNameAndLastNameAndEmailAndPasswordAndNot18NoPrivacy_400BadRequest() {
+        val emptyNameUser = UserRegistrationDto(null, null, null, null, false, false)
 
         val headers = HttpHeaders()
         headers.set("authKey", validAuthKey)
@@ -76,12 +81,12 @@ class UserControllerIntegrationTests {
         assertEquals(HttpStatus.BAD_REQUEST, errorDetailsResponse.statusCode)
         assertNotNull(errorDetailsResponse?.body?.time)
         assertEquals(RestErrorMessages.BAD_REQUEST_MESSAGE, errorDetailsResponse?.body?.restErrorMessage)
-        assertEquals(DetailedErrorMessages.FIRST_NAME_REQUIRED + DetailedErrorMessages.LAST_NAME_REQUIRED + DetailedErrorMessages.EMAIL_REQUIRED + DetailedErrorMessages.PASSWORD_REQUIRED + DetailedErrorMessages.MUST_BE_18, errorDetailsResponse?.body?.detailedMessage)
+        assertEquals(DetailedErrorMessages.FIRST_NAME_REQUIRED + DetailedErrorMessages.LAST_NAME_REQUIRED + DetailedErrorMessages.EMAIL_REQUIRED + DetailedErrorMessages.PASSWORD_REQUIRED + DetailedErrorMessages.MUST_BE_18 + DetailedErrorMessages.MUST_AGREE_PRIVACY, errorDetailsResponse?.body?.detailedMessage)
     }
 
     @Test
     fun registerUser_nullName_400BadRequest() {
-        val nullNameUser = UserRegistrationDto(null, null,"testuser@aol.com", "password", true)
+        val nullNameUser = UserRegistrationDto(null, null,"testuser@aol.com", "password", true, true)
 
         val headers = HttpHeaders()
         headers.set("authKey", validAuthKey)
@@ -97,7 +102,7 @@ class UserControllerIntegrationTests {
 
     @Test
     fun registerUser_emptyEmail_400BadRequest() {
-        val emptyEmailUser = UserRegistrationDto("test", "user", "", "password", true)
+        val emptyEmailUser = UserRegistrationDto("test", "user", "", "password", true, true)
 
         val headers = HttpHeaders()
         headers.set("authKey", validAuthKey)
@@ -113,7 +118,7 @@ class UserControllerIntegrationTests {
 
     @Test
     fun registerUser_nullEmail_400BadRequest() {
-        val nullEmailUser = UserRegistrationDto("test", "user", null, "password", true)
+        val nullEmailUser = UserRegistrationDto("test", "user", null, "password", true, true)
 
         val headers = HttpHeaders()
         headers.set("authKey", validAuthKey)
@@ -129,13 +134,13 @@ class UserControllerIntegrationTests {
 
     @Test
     fun registerUser_nullEmailAndFirstNameAndLastNameAndPassword_400BadRequest() {
-        val nullEmailUser = UserDto(null, null, null, null, true, null, null, true)
+        val nullEmailUser = UserRegistrationDto(null, null, null, null, true, true)
 
         val headers = HttpHeaders()
         headers.set("authKey", validAuthKey)
         val request = HttpEntity(nullEmailUser, headers)
 
-        val errorDetailsResponse = testRestTemplate.postForEntity("/user/register", request, ErrorDetails::class.java)
+        val errorDetailsResponse = testRestTemplate.exchange("/user/register", HttpMethod.POST, request, ErrorDetails::class.java)
 
         assertEquals(HttpStatus.BAD_REQUEST, errorDetailsResponse.statusCode)
         assertNotNull(errorDetailsResponse?.body?.time)
@@ -165,7 +170,7 @@ class UserControllerIntegrationTests {
 
         val createdUserResponse = testRestTemplate.postForEntity("/user/register", request, String::class.java)
         val createUser = objectMapper.readValue(createdUserResponse.body, UserDto::class.java)
-        val userId = createUser.user_id
+        val userId = createUser.userId
 
         val validUpdateUser = UserUpdateDto(first_name = "Tony", last_name = "Stark", email="tstark@gmail.com")
         val headers2 = HttpHeaders()
@@ -180,12 +185,12 @@ class UserControllerIntegrationTests {
         assertEquals(HttpStatus.CREATED, createdUserResponse.statusCode)
         assertEquals(validRegisterUser.first_name, createUser.first_name)
         assertEquals(validRegisterUser.email, createUser.email)
-        assertNotNull(createUser.user_id)
+        assertNotNull(createUser.userId)
 
         //test updated user
         assertNotNull(updateUserResponse)
         assertEquals(HttpStatus.OK, updateUserResponse.statusCode)
-        assertEquals(createUser.user_id, updatedUser.user_id)
+        assertEquals(createUser.userId, updatedUser.userId)
         assertEquals(validUpdateUser.first_name, updatedUser.first_name)
         assertEquals(validUpdateUser.last_name, updatedUser.last_name)
         assertEquals(validUpdateUser.email, updatedUser.email)
@@ -210,12 +215,13 @@ class UserControllerIntegrationTests {
 
     @Test
     fun updateUser_missingUserId_404NotFound() {
+        val nonExistingUserId = "ee62bb8e-3945-4a67-a898-afae826ba833"
         val invalidUpdateUser = UserUpdateDto(first_name = "Tony", last_name = "Stark", email="tstark@gmail.com")
         val headers2 = HttpHeaders()
         headers2.set("authKey", validAuthKey)
         val request2 = HttpEntity(invalidUpdateUser, headers2)
 
-        val errorDetailsResponse = testRestTemplate.exchange("/user/", HttpMethod.PUT, request2, ErrorDetails::class.java)
+        val errorDetailsResponse = testRestTemplate.exchange("/user/$nonExistingUserId", HttpMethod.PUT, request2, ErrorDetails::class.java)
 
         assertEquals(HttpStatus.NOT_FOUND, errorDetailsResponse.statusCode)
         //TODO add to this test once we have a better resource not found page
@@ -229,7 +235,7 @@ class UserControllerIntegrationTests {
 
         val createdUserResponse = testRestTemplate.postForEntity("/user/register", request, String::class.java)
         val createUser = objectMapper.readValue(createdUserResponse.body, UserDto::class.java)
-        val userId = createUser.user_id
+        val userId = createUser.userId
 
         val validUpdateUser = UserUpdateDto(first_name = "Tony", last_name = "Stark", email="tstark@gmail.com")
         val headers2 = HttpHeaders()
@@ -262,13 +268,15 @@ class UserControllerIntegrationTests {
 
     @Test
     fun getUser_validInput_200Success() {
+        val expectedActiveStatus = true
+
         val headers = HttpHeaders()
         headers.set("authKey", validAuthKey)
         val request = HttpEntity(validRegisterUser, headers)
 
         val createdUserResponse = testRestTemplate.postForEntity("/user/register", request, String::class.java)
         val createUser = objectMapper.readValue(createdUserResponse.body, UserDto::class.java)
-        val userId = createUser.user_id
+        val userId = createUser.userId
 
         val headers2 = HttpHeaders()
         headers2.set("authKey", validAuthKey)
@@ -281,7 +289,10 @@ class UserControllerIntegrationTests {
         assertEquals(HttpStatus.OK, getUserResponse.statusCode)
         assertEquals(validRegisterUser.first_name, getUser.first_name)
         assertEquals(validRegisterUser.email, getUser.email)
-        assertNotNull(getUser.user_id)
+        assertEquals(expectedActiveStatus, createUser.active_status)
+        assertEquals(validRegisterUser.agreed_privacy, createUser.agreed_privacy)
+        assertEquals(validRegisterUser.agreed_18, createUser.agreed_18)
+        assertNotNull(getUser.userId)
     }
 
     @Test
@@ -293,7 +304,7 @@ class UserControllerIntegrationTests {
 
         val createdUserResponse = testRestTemplate.postForEntity("/user/register", request, String::class.java)
         val createUser = objectMapper.readValue(createdUserResponse.body, UserDto::class.java)
-        val userId = createUser.user_id
+        val userId = createUser.userId
 
         //delete user from database
         val headers2 = HttpHeaders()
@@ -307,7 +318,7 @@ class UserControllerIntegrationTests {
         assertEquals(HttpStatus.OK, deletedUserResponse.statusCode)
         assertEquals(validRegisterUser.first_name, deletedUser.first_name)
         assertEquals(validRegisterUser.email, deletedUser.email)
-        assertNotNull(deletedUser.user_id)
+        assertNotNull(deletedUser.userId)
     }
 
     @Test
