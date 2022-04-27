@@ -4,10 +4,12 @@ import com.cag.cagbackendapi.constants.DetailedErrorMessages
 import com.cag.cagbackendapi.constants.RestErrorMessages
 import com.cag.cagbackendapi.dtos.UserRegistrationDto
 import com.cag.cagbackendapi.dtos.UserDto
+import com.cag.cagbackendapi.dtos.UserLoginDto
 import com.cag.cagbackendapi.dtos.UserUpdateDto
 import com.cag.cagbackendapi.errors.ErrorDetails
 import com.cag.cagbackendapi.util.SpringCommandLineProfileResolver
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.cag.cagbackendapi.util.TestDataCreatorService
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -23,17 +25,20 @@ import java.util.*
 class UserControllerIntegrationTests {
 
     @Autowired
-    lateinit var testRestTemplate: TestRestTemplate
+    private lateinit var testRestTemplate: TestRestTemplate
 
-    private val objectMapper = jacksonObjectMapper()
+    @Autowired
+    private lateinit var objectMapper: ObjectMapper
 
-    private val validRegisterUser = UserRegistrationDto("first name", "last name", "user", "password", true, true)
+    @Autowired
+    private lateinit var testDataCreatorService: TestDataCreatorService
+
     private val validAuthKey = "mockAuthKey"
 
     @Test
     fun registerUser_validInput_201Success() {
         val expectedActiveStatus = true
-
+        val validRegisterUser = testDataCreatorService.createValidRegisterUser()
         val headers = HttpHeaders()
         headers.set("authKey", validAuthKey)
         val request = HttpEntity(validRegisterUser, headers)
@@ -150,6 +155,7 @@ class UserControllerIntegrationTests {
 
     @Test
     fun registerUser_badAuthKey_401Unauthorized() {
+        val validRegisterUser = testDataCreatorService.createValidRegisterUser()
         val headers = HttpHeaders()
         headers.set("authKey", "wrongAuthKey")
         val request = HttpEntity(validRegisterUser, headers)
@@ -163,7 +169,136 @@ class UserControllerIntegrationTests {
     }
 
     @Test
+    fun registerUser_existingEmail_409Conflict() {
+        val validRegisterUser = testDataCreatorService.createValidRegisterUser()
+        val headers = HttpHeaders()
+        headers.set("authKey", validAuthKey)
+        val request = HttpEntity(validRegisterUser, headers)
+
+        //create user
+        val createdUserResponse = testRestTemplate.postForEntity("/user/register", request, String::class.java)
+        val createUser = objectMapper.readValue(createdUserResponse.body, UserDto::class.java)
+
+        //try to create user again with same email
+        val errorDetailsResponse = testRestTemplate.postForEntity("/user/register", request, ErrorDetails::class.java)
+
+        //ensure user is created correctly
+        assertNotNull(createdUserResponse)
+        assertEquals(HttpStatus.CREATED, createdUserResponse.statusCode)
+        assertEquals(validRegisterUser.first_name, createUser.first_name)
+        assertEquals(validRegisterUser.last_name, createUser.last_name)
+        assertEquals(validRegisterUser.email, createUser.email)
+        assertNotNull(createUser.userId)
+
+        //check the error
+        assertEquals(HttpStatus.CONFLICT, errorDetailsResponse.statusCode)
+        assertNotNull(errorDetailsResponse?.body?.time)
+        assertEquals(errorDetailsResponse?.body?.restErrorMessage, RestErrorMessages.CONFLICT_MESSAGE)
+        assertEquals(errorDetailsResponse?.body?.detailedMessage, DetailedErrorMessages.EMAIL_ALREADY_EXISTS)
+    }
+
+    @Test
+    fun loginUser_validInput_200Success() {
+        val expectedActiveStatus = true
+        val larryTestUserPassword = "password"
+
+        val larryTestUser = testDataCreatorService.createAndSaveValidRegisterUser(larryTestUserPassword)
+        val userLoginDto = UserLoginDto(larryTestUser.userId.toString(), larryTestUserPassword)
+
+        val loginUserHeaders = HttpHeaders()
+        loginUserHeaders.set("authKey", validAuthKey)
+
+        val loginRequest = HttpEntity(userLoginDto, loginUserHeaders)
+
+        val loginUserResponse = testRestTemplate.exchange("/user/login", HttpMethod.POST, loginRequest, String::class.java)
+        val loggedInUser = objectMapper.readValue(loginUserResponse.body, UserDto::class.java)
+
+        assertNotNull(loginUserResponse)
+        assertEquals(HttpStatus.OK, loginUserResponse.statusCode)
+        assertEquals(larryTestUser.first_name, loggedInUser.first_name)
+        assertEquals(larryTestUser.last_name, loggedInUser.last_name)
+        assertEquals(larryTestUser.email, loggedInUser.email)
+        assertEquals(expectedActiveStatus, loggedInUser.active_status)
+        assertEquals(larryTestUser.agreed_privacy, loggedInUser.agreed_privacy)
+        assertEquals(larryTestUser.agreed_18, loggedInUser.agreed_18)
+        assertNotNull(loggedInUser.userId)
+
+        testDataCreatorService.deleteUser(larryTestUser.userId!!)
+    }
+
+    @Test
+    fun loginUser_emptyPassword_400BadRequest() {
+        val loginUserHeaders = HttpHeaders()
+        loginUserHeaders.set("authKey", validAuthKey)
+        val userLoginDto = UserLoginDto(UUID.randomUUID().toString(), "")
+
+        val loginRequest = HttpEntity(userLoginDto, loginUserHeaders)
+
+        val errorDetailsResponse = testRestTemplate.exchange("/user/login", HttpMethod.POST, loginRequest, ErrorDetails::class.java)
+
+        assertEquals(HttpStatus.BAD_REQUEST, errorDetailsResponse.statusCode)
+        assertNotNull(errorDetailsResponse?.body?.time)
+        assertEquals(errorDetailsResponse?.body?.restErrorMessage, RestErrorMessages.BAD_REQUEST_MESSAGE)
+        assertEquals(errorDetailsResponse?.body?.detailedMessage, DetailedErrorMessages.PASSWORD_REQUIRED)
+    }
+
+    @Test
+    fun loginUser_incorrectPassword_400BadRequest() {
+        val larryTestUserPassword = "password"
+        val wrongPass = "wrongPass"
+
+        val larryTestUser = testDataCreatorService.createAndSaveValidRegisterUser(larryTestUserPassword)
+        val userLoginDto = UserLoginDto(larryTestUser.userId.toString(), wrongPass)
+
+        val loginUserHeaders = HttpHeaders()
+        loginUserHeaders.set("authKey", validAuthKey)
+        val loginRequest = HttpEntity(userLoginDto, loginUserHeaders)
+
+        val errorDetailsResponse = testRestTemplate.exchange("/user/login", HttpMethod.POST, loginRequest, ErrorDetails::class.java)
+
+        assertEquals(HttpStatus.BAD_REQUEST, errorDetailsResponse.statusCode)
+        assertNotNull(errorDetailsResponse?.body?.time)
+        assertEquals(errorDetailsResponse?.body?.restErrorMessage, RestErrorMessages.BAD_REQUEST_MESSAGE)
+        assertEquals(errorDetailsResponse?.body?.detailedMessage, DetailedErrorMessages.INCORRECT_PASSWORD)
+    }
+
+    @Test
+    fun loginUser_invalidUserId_400BadRequest() {
+        val pass = "pass"
+
+        val loginUserHeaders = HttpHeaders()
+        loginUserHeaders.set("authKey", validAuthKey)
+
+        val userLoginDto = UserLoginDto("", pass)
+        val loginRequest = HttpEntity(userLoginDto, loginUserHeaders)
+
+        val errorDetailsResponse = testRestTemplate.exchange("/user/login", HttpMethod.POST, loginRequest, ErrorDetails::class.java)
+
+        assertEquals(HttpStatus.BAD_REQUEST, errorDetailsResponse.statusCode)
+        assertNotNull(errorDetailsResponse?.body?.time)
+        assertEquals(errorDetailsResponse?.body?.restErrorMessage, RestErrorMessages.BAD_REQUEST_MESSAGE)
+        assertEquals(errorDetailsResponse?.body?.detailedMessage, DetailedErrorMessages.INVALID_USER_ID)
+    }
+
+    @Test
+    fun loginUser_nonExistingUser_404NotFound() {
+        val loginUserHeaders = HttpHeaders()
+        loginUserHeaders.set("authKey", validAuthKey)
+        val userLoginDto = UserLoginDto(UUID.randomUUID().toString(), "pass")
+
+        val loginRequest = HttpEntity(userLoginDto, loginUserHeaders)
+
+        val errorDetailsResponse = testRestTemplate.exchange("/user/login", HttpMethod.POST, loginRequest, ErrorDetails::class.java)
+
+        assertEquals(HttpStatus.NOT_FOUND, errorDetailsResponse.statusCode)
+        assertNotNull(errorDetailsResponse?.body?.time)
+        assertEquals(errorDetailsResponse?.body?.restErrorMessage, RestErrorMessages.NOT_FOUND_MESSAGE)
+        assertEquals(errorDetailsResponse?.body?.detailedMessage, DetailedErrorMessages.USER_NOT_FOUND)
+    }
+
+    @Test
     fun updateUser_validInput_200Success() {
+        val validRegisterUser = testDataCreatorService.createValidRegisterUser()
         val headers = HttpHeaders()
         headers.set("authKey", validAuthKey)
         val request = HttpEntity(validRegisterUser, headers)
@@ -172,7 +307,7 @@ class UserControllerIntegrationTests {
         val createUser = objectMapper.readValue(createdUserResponse.body, UserDto::class.java)
         val userId = createUser.userId
 
-        val validUpdateUser = UserUpdateDto(first_name = "Tony", last_name = "Stark", email="tstark@gmail.com")
+        val validUpdateUser = UserUpdateDto(first_name = "Tony", last_name = "Stark", email=testDataCreatorService.randomEmail())
         val headers2 = HttpHeaders()
         headers2.set("authKey", validAuthKey)
         val request2 = HttpEntity(validUpdateUser, headers2)
@@ -215,8 +350,8 @@ class UserControllerIntegrationTests {
 
     @Test
     fun updateUser_missingUserId_404NotFound() {
-        val nonExistingUserId = "ee62bb8e-3945-4a67-a898-afae826ba833"
-        val invalidUpdateUser = UserUpdateDto(first_name = "Tony", last_name = "Stark", email="tstark@gmail.com")
+        val nonExistingUserId = UUID.randomUUID().toString()
+        val invalidUpdateUser = UserUpdateDto(first_name = "Tony", last_name = "Stark", email= testDataCreatorService.randomEmail())
         val headers2 = HttpHeaders()
         headers2.set("authKey", validAuthKey)
         val request2 = HttpEntity(invalidUpdateUser, headers2)
@@ -229,6 +364,7 @@ class UserControllerIntegrationTests {
 
     @Test
     fun updateUser_invalidAuthKey_401Unauthorized() {
+        val validRegisterUser = testDataCreatorService.createValidRegisterUser()
         val headers = HttpHeaders()
         headers.set("authKey", validAuthKey)
         val request = HttpEntity(validRegisterUser, headers)
@@ -253,7 +389,7 @@ class UserControllerIntegrationTests {
     @Test
     fun updateUser_userNotFound_404NotFound(){
         val userId = UUID.randomUUID()
-        val validUpdateUser = UserUpdateDto(first_name = "Tony", last_name = "Stark", email="tstark@gmail.com")
+        val validUpdateUser = UserUpdateDto(first_name = "Tony", last_name = "Stark", email = testDataCreatorService.randomEmail())
         val headers2 = HttpHeaders()
         headers2.set("authKey", validAuthKey)
         val request2 = HttpEntity(validUpdateUser, headers2)
@@ -268,8 +404,8 @@ class UserControllerIntegrationTests {
 
     @Test
     fun getUser_validInput_200Success() {
+        val validRegisterUser = testDataCreatorService.createValidRegisterUser()
         val expectedActiveStatus = true
-
         val headers = HttpHeaders()
         headers.set("authKey", validAuthKey)
         val request = HttpEntity(validRegisterUser, headers)
@@ -296,7 +432,56 @@ class UserControllerIntegrationTests {
     }
 
     @Test
+    fun updateUser_existingEmail_409Conflict() {
+        //create an existing user
+        val validRegisterUser = testDataCreatorService.createValidRegisterUser()
+        val headers = HttpHeaders()
+        headers.set("authKey", validAuthKey)
+        val request = HttpEntity(validRegisterUser, headers)
+
+        val createdUserResponse = testRestTemplate.postForEntity("/user/register", request, String::class.java)
+        val createUser = objectMapper.readValue(createdUserResponse.body, UserDto::class.java)
+        val createUserEmail = createUser.email
+
+        //create a new user
+        val validRegisterUser2 = testDataCreatorService.createValidRegisterUser()
+        val headers2 = HttpHeaders()
+        headers2.set("authKey", validAuthKey)
+        val request2 = HttpEntity(validRegisterUser2, headers2)
+
+        //create user
+        val createdUserResponse2 = testRestTemplate.postForEntity("/user/register", request2, String::class.java)
+        val createUser2 = objectMapper.readValue(createdUserResponse2.body, UserDto::class.java)
+        val createUserId = createUser2.userId
+
+        val validUpdateUser = UserUpdateDto(first_name = "Tony", last_name = "Stark", email=createUserEmail)
+
+        //try to create user again with same email
+        //val errorDetailsResponse = testRestTemplate.postForEntity("/user/register", request, ErrorDetails::class.java)
+        val headers3 = HttpHeaders()
+        headers3.set("authKey", validAuthKey)
+        val request3 = HttpEntity(validUpdateUser, headers3)
+
+        val errorDetailsResponse = testRestTemplate.exchange("/user/$createUserId", HttpMethod.PUT, request3, ErrorDetails::class.java)
+
+        //ensure user is created correctly
+        assertNotNull(createdUserResponse)
+        assertEquals(HttpStatus.CREATED, createdUserResponse.statusCode)
+        assertEquals(validRegisterUser.first_name, createUser.first_name)
+        assertEquals(validRegisterUser.last_name, createUser.last_name)
+        assertEquals(validRegisterUser.email, createUser.email)
+        assertNotNull(createUser.userId)
+
+        //check the error
+        assertEquals(HttpStatus.CONFLICT, errorDetailsResponse.statusCode)
+        assertNotNull(errorDetailsResponse?.body?.time)
+        assertEquals(errorDetailsResponse?.body?.restErrorMessage, RestErrorMessages.CONFLICT_MESSAGE)
+        assertEquals(errorDetailsResponse?.body?.detailedMessage, DetailedErrorMessages.EMAIL_ALREADY_EXISTS)
+    }
+
+    @Test
     fun deleteUser_validInput_200Success(){
+        val validRegisterUser = testDataCreatorService.createValidRegisterUser()
         //register User
         val headers = HttpHeaders()
         headers.set("authKey", validAuthKey)

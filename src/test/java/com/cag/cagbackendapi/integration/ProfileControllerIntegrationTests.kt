@@ -8,8 +8,8 @@ import com.cag.cagbackendapi.dtos.UserDto
 import com.cag.cagbackendapi.dtos.UserRegistrationDto
 import com.cag.cagbackendapi.errors.ErrorDetails
 import com.cag.cagbackendapi.util.SpringCommandLineProfileResolver
+import com.cag.cagbackendapi.util.TestDataCreatorService
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
@@ -30,8 +30,10 @@ class ProfileControllerIntegrationTests {
 
     private val objectMapper = jacksonObjectMapper()
 
-    private val validRegisterUser = UserRegistrationDto("first name", "last name", "user", "password", true, true)
-    private val validRegisterProfile = ProfileRegistrationDto(pronouns = "he/him", lgbtqplus_member = false, gender_identity = "male", comfortable_playing_transition = true, comfortable_playing_man = true, comfortable_playing_women = true, comfortable_playing_neither = false, height_inches = 88, agency = "Pedro LLC", website_link_one = "", website_link_two = "", website_type_one = "", website_type_two = "", bio = "this is my bio", landing_perform_type_on_stage = true, landing_perform_type_off_stage = false, actor_info_1_ethnicities = listOf("Hispanic"), actor_info_2_age_ranges = listOf(0,2), actor_info_2_gender_roles = listOf("male"), off_stage_roles_general = listOf("peter pan"), off_stage_roles_production = listOf("producer"),off_stage_roles_scenic = listOf("stage-hand"), off_stage_roles_lighting = listOf("light manger 1", "light manager 1"), off_stage_roles_hair_makeup_costumes = listOf("cosmetologist", "lead cosmetologist"), off_stage_roles_sound = listOf("sound tech 1"), profile_photo_url = "www.awsPhotoURL.com", demographic_union_status = "United Actors of America", demographic_websites = listOf("www.myPersonalProfile.com"))
+    @Autowired
+    private lateinit var testDataCreatorService: TestDataCreatorService
+
+    private val validRegisterProfile = ProfileRegistrationDto(pronouns = "he/him", lgbtqplus_member = false, gender_identity = "male", comfortable_playing_transition = true, comfortable_playing_man = true, comfortable_playing_women = true, comfortable_playing_neither = false, height_inches = 88, agency = "Pedro LLC", website_link_one = "", website_link_two = "", website_type_one = "", website_type_two = "", bio = "this is my bio", landing_perform_type_on_stage = true, landing_perform_type_off_stage = false, actor_info_1_ethnicities = listOf("Hispanic"), actor_info_2_age_ranges = listOf(0,2), actor_info_2_gender_roles = listOf("male"), off_stage_roles_general = listOf("peter pan"), off_stage_roles_production = listOf("producer"),off_stage_roles_scenic = listOf("stage-hand"), off_stage_roles_lighting = listOf("light manger 1", "light manager 1"), off_stage_roles_hair_makeup_costumes = listOf("cosmetologist", "lead cosmetologist"), off_stage_roles_sound = listOf("sound tech 1"), profile_photo_url = "www.awsPhotoURL.com", demographic_union_status = "United Actors of America", demographic_websites = listOf("www.myPersonalProfile.com"), actor_skills= listOf("climbing", "singing"))
 
     private val userProfileInvalidUnionStatus = ProfileRegistrationDto(pronouns = "he/him", lgbtqplus_member = false, gender_identity = "male", comfortable_playing_transition = true, comfortable_playing_man = true, comfortable_playing_women = true, comfortable_playing_neither = false, height_inches = 88, agency = "Pedro LLC", website_link_one = "", website_link_two = "", website_type_one = "", website_type_two = "", bio = "this is my bio", landing_perform_type_on_stage = true, landing_perform_type_off_stage = false, actor_info_1_ethnicities = listOf("Hispanic"), actor_info_2_age_ranges = listOf(0,2), actor_info_2_gender_roles = listOf("male"), off_stage_roles_general = listOf("peter pan"), off_stage_roles_production = listOf("producer"),off_stage_roles_scenic = listOf("stage-hand"), off_stage_roles_lighting = listOf("light manger 1", "light manager 1"), off_stage_roles_hair_makeup_costumes = listOf("cosmetologist", "lead cosmetologist"), off_stage_roles_sound = listOf("sound tech 1"), profile_photo_url = "www.awsPhotoURL.com", demographic_union_status = "Pedro Test", demographic_websites = listOf("www.myPersonalProfile.com"))
     private val userProfileNullUnionStatus = ProfileRegistrationDto(pronouns = "he/him", lgbtqplus_member = false, gender_identity = "male", comfortable_playing_transition = true, comfortable_playing_man = true, comfortable_playing_women = true, comfortable_playing_neither = false, height_inches = 88, agency = "Pedro LLC", website_link_one = "", website_link_two = "", website_type_one = "", website_type_two = "", bio = "this is my bio", landing_perform_type_on_stage = true, landing_perform_type_off_stage = false, actor_info_1_ethnicities = listOf("Hispanic"), actor_info_2_age_ranges = listOf(0,2), actor_info_2_gender_roles = listOf("male"), off_stage_roles_general = listOf("peter pan"), off_stage_roles_production = listOf("producer"),off_stage_roles_scenic = listOf("stage-hand"), off_stage_roles_lighting = listOf("light manger 1", "light manager 1"), off_stage_roles_hair_makeup_costumes = listOf("cosmetologist", "lead cosmetologist"), off_stage_roles_sound = listOf("sound tech 1"), profile_photo_url = "www.awsPhotoURL.com", demographic_union_status = null, demographic_websites = listOf("www.myPersonalProfile.com"))
@@ -41,6 +43,7 @@ class ProfileControllerIntegrationTests {
     @Test
     fun registerProfile_validInput_201Success() {
         //create user headers
+        val validRegisterUser = testDataCreatorService.createValidRegisterUser()
         val headers = HttpHeaders()
         headers.set("authKey", validAuthKey)
         val request = HttpEntity(validRegisterUser, headers)
@@ -66,7 +69,11 @@ class ProfileControllerIntegrationTests {
         assertEquals(validRegisterUser.first_name, createUser.first_name)
         assertEquals(validRegisterUser.last_name, createUser.last_name)
         assertEquals(validRegisterUser.email, createUser.email)
+        assertEquals(validRegisterUser.agreed_18, createUser.agreed_18)
+        assertEquals(validRegisterUser.agreed_privacy, createUser.agreed_privacy)
+        assertEquals(true, createUser.active_status)
         assertNotNull(createUser.userId)
+        assertNotNull(createUser.session_id)
 
         //check the created profile
         assertNotNull(userProfileResponse)
@@ -92,6 +99,7 @@ class ProfileControllerIntegrationTests {
     @Test
     fun registerProfile_badAuthKey_401Unauthorized() {
         //create user headers
+        val validRegisterUser = testDataCreatorService.createValidRegisterUser()
         val headers = HttpHeaders()
         headers.set("authKey", validAuthKey)
         val request = HttpEntity(validRegisterUser, headers)
@@ -147,6 +155,7 @@ class ProfileControllerIntegrationTests {
     @Test
     fun registerProfile_userHasExistingProfile_Conflict(){
         //create user headers
+        val validRegisterUser = testDataCreatorService.createValidRegisterUser()
         val headers = HttpHeaders()
         headers.set("authKey", validAuthKey)
         val request = HttpEntity(validRegisterUser, headers)
@@ -159,23 +168,14 @@ class ProfileControllerIntegrationTests {
         //register profile headers
         val headers2 = HttpHeaders()
         headers2.set("authKey", validAuthKey)
-        headers2.set("userId", userIdUUID.toString())
         val request2 = HttpEntity(validRegisterProfile, headers2)
-
 
         //create profile
         val userProfileResponse = testRestTemplate.exchange("/user/${userIdUUID.toString()}/profile/register", HttpMethod.POST, request2, String::class.java)
         val createdProfile = objectMapper.readValue(userProfileResponse.body, ProfileDto::class.java)
 
-        //register profile headers2
-        val headers3 = HttpHeaders()
-        headers3.set("authKey", validAuthKey)
-        headers3.set("userId", userIdUUID.toString())
-        val request3 = HttpEntity(validRegisterProfile, headers3)
-
         //Error create duplicate profile
-        val errorDetailsResponse = testRestTemplate.exchange("/user/${userIdUUID.toString()}/profile/register", HttpMethod.POST, request3, ErrorDetails::class.java)
-
+        val errorDetailsResponse = testRestTemplate.exchange("/user/${userIdUUID.toString()}/profile/register", HttpMethod.POST, request2, ErrorDetails::class.java)
 
         //check the created user
         assertNotNull(createdUserResponse)
@@ -197,6 +197,7 @@ class ProfileControllerIntegrationTests {
     @Test
     fun getProfile_validInput_200Success() {
         //create user headers
+        val validRegisterUser = testDataCreatorService.createValidRegisterUser()
         val headers = HttpHeaders()
         headers.set("authKey", validAuthKey)
         val request = HttpEntity(validRegisterUser, headers)
@@ -273,6 +274,7 @@ class ProfileControllerIntegrationTests {
     @Test
     fun getProfile_noProfileForUser_404NotFound() {
         //create user headers
+        val validRegisterUser = testDataCreatorService.createValidRegisterUser()
         val headers = HttpHeaders()
         headers.set("authKey", validAuthKey)
         val request = HttpEntity(validRegisterUser, headers)
@@ -307,8 +309,9 @@ class ProfileControllerIntegrationTests {
     }
 
     @Test
-    fun registerProfile_invalidUnionStatus_404UnionNotValid() {
+    fun registerProfile_invalidUnionStatus_400InvalidUnion() {
         //create user headers
+        val validRegisterUser = testDataCreatorService.createValidRegisterUser()
         val headers = HttpHeaders()
         headers.set("authKey", validAuthKey)
         val request = HttpEntity(validRegisterUser, headers)
@@ -336,15 +339,16 @@ class ProfileControllerIntegrationTests {
         assertNotNull(createUser.userId)
 
         //check the error
-        assertEquals(HttpStatus.NOT_FOUND, errorDetailsResponse.statusCode)
+        assertEquals(HttpStatus.BAD_REQUEST, errorDetailsResponse.statusCode)
         assertNotNull(errorDetailsResponse?.body?.time)
-        assertEquals(errorDetailsResponse?.body?.restErrorMessage, RestErrorMessages.NOT_FOUND_MESSAGE)
+        assertEquals(errorDetailsResponse?.body?.restErrorMessage, RestErrorMessages.BAD_REQUEST_MESSAGE)
         assertEquals(errorDetailsResponse?.body?.detailedMessage, DetailedErrorMessages.UNION_STATUS_NOT_SUPPORTED)
     }
 
     @Test
     fun registerProfile_nullUnionStatus_400BadRequest() {
         //create user headers
+        val validRegisterUser = testDataCreatorService.createValidRegisterUser()
         val headers = HttpHeaders()
         headers.set("authKey", validAuthKey)
         val request = HttpEntity(validRegisterUser, headers)

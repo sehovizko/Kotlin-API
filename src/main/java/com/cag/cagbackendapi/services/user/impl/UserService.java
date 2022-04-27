@@ -3,25 +3,24 @@ package com.cag.cagbackendapi.services.user.impl;
 import com.cag.cagbackendapi.constants.DetailedErrorMessages;
 import com.cag.cagbackendapi.daos.impl.UserDao;
 import com.cag.cagbackendapi.dtos.UserDto;
+import com.cag.cagbackendapi.dtos.UserLoginDto;
 import com.cag.cagbackendapi.dtos.UserRegistrationDto;
 import com.cag.cagbackendapi.dtos.UserUpdateDto;
 import com.cag.cagbackendapi.errors.exceptions.BadRequestException;
+import com.cag.cagbackendapi.errors.exceptions.ConflictException;
 import com.cag.cagbackendapi.errors.exceptions.NotFoundException;
 import com.cag.cagbackendapi.services.user.UserServiceI;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
 
 @Service
 public class UserService implements UserServiceI {
-    private final PasswordEncoder passwordEncoder;
     private final UserDao userDao;
 
     @Autowired
-    public UserService(PasswordEncoder passwordEncoder, UserDao userDao) {
-        this.passwordEncoder = passwordEncoder;
+    public UserService(UserDao userDao) {
         this.userDao = userDao;
     }
 
@@ -29,10 +28,14 @@ public class UserService implements UserServiceI {
     public UserDto registerUser(UserRegistrationDto userRegistrationDto) {
         validateUserRegistrationDto(userRegistrationDto);
 
-        String encodedPassword = passwordEncoder.encode(userRegistrationDto.getPass());
-        userRegistrationDto.setPass(encodedPassword);
-
+        checkRegisterUserDuplicateEmail(userRegistrationDto.getEmail());
         return userDao.saveUser(userRegistrationDto);
+    }
+
+    private void checkRegisterUserDuplicateEmail(String email) {
+        if (userDao.getUserByEmail(email)!= null){
+            throw new ConflictException(DetailedErrorMessages.EMAIL_ALREADY_EXISTS, null);
+        }
     }
 
     @Override
@@ -49,10 +52,29 @@ public class UserService implements UserServiceI {
     }
 
     @Override
+    public UserDto loginUser(UserLoginDto userLoginDto) {
+        UUID userUUID = getUserUuidFromString(userLoginDto.getUser_id());
+
+        if (userLoginDto.getPass() == null || userLoginDto.getPass().isBlank()) {
+            throw new BadRequestException(DetailedErrorMessages.PASSWORD_REQUIRED, null);
+        }
+
+        var userResponseDto = userDao.loginAndGetUser(userUUID, userLoginDto.getPass());
+
+        if(userResponseDto == null) {
+            throw new NotFoundException(DetailedErrorMessages.USER_NOT_FOUND, null);
+        }
+
+        return userResponseDto;
+    }
+
+    @Override
     public UserDto updateUser(String userId, UserUpdateDto userUpdateDto) {
         UUID userUUID = getUserUuidFromString(userId);
 
         validateUserUpdateDto(userUpdateDto);
+
+        checkUpdateUserDuplicateEmail(userUpdateDto, userUUID);
 
         var userResponseDto = userDao.updateUser(userUUID, userUpdateDto);
 
@@ -61,6 +83,19 @@ public class UserService implements UserServiceI {
         }
 
         return userResponseDto;
+    }
+
+    private void checkUpdateUserDuplicateEmail(UserUpdateDto userUpdateDto, UUID userUUID) {
+        assert userUpdateDto.getEmail()!= null;
+
+        //checks if email already exist. If it does, then check if it's the same user as the email owner
+        if (userDao.getUserByEmail(userUpdateDto.getEmail()) != null) {
+            UserDto existentUserDto = userDao.getUserByEmail(userUpdateDto.getEmail());
+            assert existentUserDto != null;
+            if (!existentUserDto.getUserId().equals(userUUID)){
+                throw new ConflictException(DetailedErrorMessages.EMAIL_ALREADY_EXISTS, null);
+            }
+        }
     }
 
     @Override

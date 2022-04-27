@@ -4,6 +4,7 @@ import com.cag.cagbackendapi.dtos.ProfileRegistrationDto
 import com.cag.cagbackendapi.dtos.UserRegistrationDto
 import com.cag.cagbackendapi.dtos.UserDto
 import com.cag.cagbackendapi.dtos.UserUpdateDto
+import com.cag.cagbackendapi.entities.SkillMemberEntity
 import com.cag.cagbackendapi.entities.UnionStatusEntity
 import com.cag.cagbackendapi.entities.UnionStatusMemberEntity
 import java.util.*
@@ -28,6 +29,7 @@ object DetailedErrorMessages {
     const val PASSWORD_REQUIRED = "Password is required. "
     const val INVALID_USER_ID = "Invalid user ID. "
     const val USER_NOT_FOUND = "User not found. "
+    const val INCORRECT_PASSWORD = "Incorrect password. "
     const val INVALID_UUID = "Invalid Id. "
     const val MUST_BE_18 = "You must be eighteen years or older to use Chicago Artist Guide. "
     const val MUST_AGREE_PRIVACY = "You must accept our Privacy Agreement to use Chicago Artist Guide. "
@@ -39,7 +41,8 @@ object DetailedErrorMessages {
     const val BIO_REQUIRED = "Bio is required. "
     const val PROFILE_NOT_FOUND = "Profile not found. "
     const val UNION_STATUS_MEMBER_REQUIRED = "Union status is required. "
-    const val UNION_STATUS_NOT_SUPPORTED = "Union Status not supported. "
+    const val UNION_STATUS_NOT_SUPPORTED = "Union Status not supported."
+    const val EMAIL_ALREADY_EXISTS = "This email is already being used on another account."
 }
 
 object LoggerMessages {
@@ -52,6 +55,9 @@ object LoggerMessages {
     fun GET_USER(userId: UUID): String {
         return "Get user: $userId"
     }
+    fun LOGIN_USER(userId: UUID): String {
+        return "Login user: $userId"
+    }
     fun DELETE_USER(userUUID: UUID): String {
         return "Delete user: $userUUID"
     }
@@ -63,5 +69,9 @@ object LoggerMessages {
     }
     fun LOG_SAVE_UNION_STATUS_MEMBER(unionStatusMemberEntity: UnionStatusMemberEntity): String {
         return "Save Union Status Member: $unionStatusMemberEntity"
+    }
+
+    fun LOG_SAVE_SKILL_MEMBER(skillMemberEntity: SkillMemberEntity): String {
+        return "Save Skill Member: $skillMemberEntity"
     }
 }
